@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>iframe 页签演示</title>
+    <style>
+      :root {
+        color-scheme: light;
+      }
+      body {
+        margin: 0;
+        padding: 20px 24px;
+        font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Microsoft YaHei', Arial, sans-serif;
+        color: #303133;
+        background: #f7f9fc;
+      }
+      h2 {
+        margin: 0 0 10px;
+        font-size: 18px;
+      }
+      p {
+        margin: 0 0 14px;
+        color: #606266;
+        font-size: 13px;
+        line-height: 1.8;
+      }
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 14px;
+      }
+      button {
+        cursor: pointer;
+        border: 1px solid #409eff;
+        border-radius: 6px;
+        background: #409eff;
+        color: #fff;
+        font-size: 13px;
+        padding: 7px 12px;
+      }
+      button.plain {
+        background: #fff;
+        color: #409eff;
+      }
+      pre {
+        margin: 0;
+        padding: 12px;
+        min-height: 160px;
+        max-height: 50vh;
+        overflow: auto;
+        background: #0f172a;
+        color: #d6e2f0;
+        border-radius: 8px;
+        font-size: 12px;
+        line-height: 1.6;
+        white-space: pre-wrap;
+      }
+      code {
+        background: #eef2f7;
+        border-radius: 4px;
+        padding: 1px 5px;
+        color: #c7254e;
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>iframe 页签演示</h2>
+    <p>
+      这个页面通过 <code>TabViewUrl.createRelative('/iframe-demo.html')</code> 被当成 iframe
+      页签打开。页签切换 / 关闭由 Melt Tabs 管理，页面之间的通信使用 <code>postMessage</code>。
+    </p>
+
+    <div class="actions">
+      <button id="btn-ping">向宿主发送 demo:ping</button>
+      <button id="btn-refresh" class="plain">请求宿主刷新当前页签</button>
+      <button id="btn-clear" class="plain">清空输出</button>
+    </div>
+
+    <pre id="output">等待消息…</pre>
+
+    <script>
+      var output = document.getElementById('output')
+      var ORIGIN = window.location.origin
+
+      function log(text) {
+        var line = '[' + new Date().toLocaleTimeString() + '] ' + text
+        output.textContent = '等待消息…' === output.textContent ? line : line + '\n' + output.textContent
+      }
+
+      window.addEventListener('message', function (event) {
+        if (event.origin !== ORIGIN) return
+        log('收到宿主消息：' + JSON.stringify(event.data))
+        // 宿主用 postIframeMessage 发来 ping 时回一条 pong
+        if (event.data && event.data.type === 'demo:ping' && event.source) {
+          event.source.postMessage({ type: 'demo:pong', at: Date.now() }, ORIGIN)
+        }
+      })
+
+      document.getElementById('btn-ping').addEventListener('click', function () {
+        window.parent.postMessage({ type: 'demo:ping', at: Date.now() }, ORIGIN)
+        log('已向宿主发送 demo:ping')
+      })
+
+      document.getElementById('btn-refresh').addEventListener('click', function () {
+        // 宿主在 iframe.onMessage 里调用 tabsManager.refreshTab(tabId)
+        window.parent.postMessage({ type: 'demo:refresh-current' }, ORIGIN)
+        log('已请求宿主刷新当前页签')
+      })
+
+      document.getElementById('btn-clear').addEventListener('click', function () {
+        output.textContent = '等待消息…'
+      })
+
+      // 通知宿主 iframe 已就绪
+      window.parent.postMessage({ type: 'demo:ready', href: window.location.href }, ORIGIN)
+      log('iframe 已就绪，等待宿主消息')
+    </script>
+  </body>
+</html>
